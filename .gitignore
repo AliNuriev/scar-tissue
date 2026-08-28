@@ -26,5 +26,4 @@ venv/
 # runtime artifacts
 *.log
 .DS_Store
-runs/
 tmp/
