@@ -1,0 +1,30 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+*.apikey
+credentials.json
+ibm-credentials.env
+secrets/
+*.pem
+*.key
+
+# bob local state (rules and skills ARE committed, auth is not)
+.bob/auth*
+.bob/cache/
+.bob/logs/
+.bob/session*
+
+# deps / build
+node_modules/
+dist/
+build/
+__pycache__/
+.venv/
+venv/
+
+# runtime artifacts
+*.log
+.DS_Store
+runs/
+tmp/
