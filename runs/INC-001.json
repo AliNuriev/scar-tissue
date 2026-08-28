@@ -1,0 +1,31 @@
+{
+  "incident_id": "INC-001",
+  "title": "Double booking on concurrent seat reservation",
+  "source_doc": "incidents/INC-001.md",
+  "status": "immunized",
+  "bug_class": "race-condition",
+  "confidence": 0.86,
+  "timeline": {
+    "started_at": "2026-08-29T10:12:00Z",
+    "finished_at": "2026-08-29T10:18:30Z",
+    "duration_sec": 390
+  },
+  "agents": [
+    { "name": "locator",    "status": "ok", "duration_sec": 41,  "summary": "Traced the booking path to services/booking.js:88" },
+    { "name": "historian",  "status": "ok", "duration_sec": 38,  "summary": "Two prior commits touched the same unguarded read-modify-write" },
+    { "name": "reproducer", "status": "ok", "duration_sec": 92,  "summary": "Wrote a failing concurrency test, confirmed red" },
+    { "name": "fixer",      "status": "ok", "duration_sec": 121, "summary": "Wrapped the seat claim in a transactional check, test now green" },
+    { "name": "immunizer",  "status": "ok", "duration_sec": 74,  "summary": "Generated guardrail for unguarded read-modify-write on shared state" }
+  ],
+  "artifacts": {
+    "failing_test": "sandbox/galaxium-travels/tests/booking.race.test.js",
+    "patch_diff": "runs/INC-001/fix.diff",
+    "guardrail": "guardrails/race-condition-shared-resource.md",
+    "pr_url": null
+  },
+  "backtest": {
+    "prevented": true,
+    "evidence": "runs/INC-001/backtest.log"
+  },
+  "manual_baseline_sec": 10800
+}

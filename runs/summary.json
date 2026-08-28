@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-08-29T10:20:00Z",
+  "target_repo": "galaxium-travels",
+  "incidents_total": 12,
+  "incidents_immunized": 9,
+  "incidents_needs_review": 2,
+  "incidents_failed": 1,
+  "prevention_rate": 0.75,
+  "guardrails_active": 9,
+  "bug_classes_covered": [
+    "race-condition",
+    "unbounded-resource",
+    "unvalidated-input",
+    "boundary-error",
+    "resource-leak"
+  ],
+  "time_saved_sec": 41400,
+  "avg_pipeline_sec": 312,
+  "avg_manual_baseline_sec": 7800
+}
