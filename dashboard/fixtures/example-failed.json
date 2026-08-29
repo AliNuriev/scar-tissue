@@ -1,0 +1,56 @@
+{
+  "incident_id": "INC-901",
+  "title": "EXAMPLE \u2014 pipeline could not resolve the incident",
+  "source_doc": "incidents/INC-901.md",
+  "status": "failed",
+  "bug_class": "unbounded-resource",
+  "confidence": 0.19,
+  "timeline": {
+    "started_at": "2026-08-30T09:00:00Z",
+    "finished_at": "2026-08-30T09:04:10Z",
+    "duration_sec": 250
+  },
+  "agents": [
+    {
+      "name": "locator",
+      "status": "ok",
+      "duration_sec": 44,
+      "summary": "Two candidate files, neither conclusive"
+    },
+    {
+      "name": "historian",
+      "status": "ok",
+      "duration_sec": 31,
+      "summary": "Weak prose signal match; confidence 0.19"
+    },
+    {
+      "name": "reproducer",
+      "status": "error",
+      "duration_sec": 98,
+      "summary": "Could not produce a red test against either candidate"
+    },
+    {
+      "name": "fixer",
+      "status": "error",
+      "duration_sec": 0,
+      "summary": "No failing test to satisfy; aborted"
+    },
+    {
+      "name": "immunizer",
+      "status": "error",
+      "duration_sec": 0,
+      "summary": "Nothing to generalize; aborted"
+    }
+  ],
+  "artifacts": {
+    "failing_test": null,
+    "patch_diff": null,
+    "guardrail": null,
+    "pr_url": null
+  },
+  "backtest": {
+    "prevented": false,
+    "evidence": null
+  },
+  "manual_baseline_sec": 7200
+}

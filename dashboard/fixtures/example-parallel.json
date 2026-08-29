@@ -1,0 +1,61 @@
+{
+  "incident_id": "INC-902",
+  "title": "EXAMPLE \u2014 same run with per-agent start offsets, showing real parallelism",
+  "source_doc": "incidents/INC-902.md",
+  "status": "immunized",
+  "bug_class": "race-condition",
+  "confidence": 0.88,
+  "timeline": {
+    "started_at": "2026-08-30T09:00:00Z",
+    "finished_at": "2026-08-30T09:03:20Z",
+    "duration_sec": 200
+  },
+  "agents": [
+    {
+      "name": "locator",
+      "status": "ok",
+      "duration_sec": 62,
+      "start_offset_sec": 0,
+      "summary": "Ran concurrently with historian"
+    },
+    {
+      "name": "historian",
+      "status": "ok",
+      "duration_sec": 80,
+      "start_offset_sec": 0,
+      "summary": "Ran concurrently with locator"
+    },
+    {
+      "name": "reproducer",
+      "status": "ok",
+      "duration_sec": 90,
+      "start_offset_sec": 62,
+      "summary": "Started as soon as the locator returned"
+    },
+    {
+      "name": "fixer",
+      "status": "ok",
+      "duration_sec": 74,
+      "start_offset_sec": 88,
+      "summary": "Overlapped the tail of the reproducer"
+    },
+    {
+      "name": "immunizer",
+      "status": "ok",
+      "duration_sec": 48,
+      "start_offset_sec": 152,
+      "summary": "Final stage"
+    }
+  ],
+  "artifacts": {
+    "failing_test": "sandbox/tests/INC-003.test.js",
+    "patch_diff": "--- a/sandbox/services/booking.js\n+++ b/sandbox/services/booking.js\n@@ -84,7 +84,11 @@\n-  const seat = await Seat.findOne({ flight, row });\n-  seat.claimed = true;\n-  await seat.save();\n+  const claimed = await Seat.findOneAndUpdate(\n+    { flight, row, claimed: false },\n+    { $set: { claimed: true } },\n+    { new: true }\n+  );\n+  if (!claimed) throw new SeatUnavailableError(flight, row);",
+    "guardrail": "guardrails/race-condition-shared-resource.md",
+    "pr_url": null
+  },
+  "backtest": {
+    "prevented": true,
+    "evidence": "example fixture \u2014 not a real backtest"
+  },
+  "manual_baseline_sec": 10800
+}

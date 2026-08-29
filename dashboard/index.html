@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scar Tissue — Immunity Ledger</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="topbar-brand">
+    <h1>Scar&nbsp;Tissue</h1>
+    <p>Every incident becomes a guardrail.</p>
+  </div>
+
+  <div class="hero" id="hero">
+    <div class="hero-value" id="hero-value">—</div>
+    <div class="hero-label">Prevention rate</div>
+    <div class="hero-sub" id="hero-sub"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" id="stat-guardrails">—</div>
+      <div class="stat-label">Guardrails active</div>
+      <div class="stat-sub" id="stat-guardrails-sub"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-processed">—</div>
+      <div class="stat-label">Incidents processed</div>
+      <div class="stat-sub" id="stat-processed-sub"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-saved">—</div>
+      <div class="stat-label">Engineer time saved</div>
+      <div class="stat-sub" id="stat-saved-sub"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="alerts"></div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Incidents</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="chip chip-immunized">immunized</span> guardrail installed</span>
+        <span class="legend-item"><span class="chip chip-needs_review">needs review</span> low confidence, wants a human</span>
+        <span class="legend-item"><span class="chip chip-failed">failed</span> pipeline could not resolve</span>
+      </div>
+    </div>
+    <div id="incident-list" class="incident-list"></div>
+  </section>
+</main>
+
+<!-- Detail view -->
+<div class="drawer-scrim" id="drawer-scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Incident detail">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-id" id="drawer-id"></div>
+      <h2 class="drawer-title" id="drawer-title"></h2>
+      <div class="drawer-meta" id="drawer-meta"></div>
+    </div>
+    <button class="drawer-close" id="drawer-close" aria-label="Close detail">&times;</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<footer class="footer">
+  <span id="footer-generated"></span>
+  <button id="refresh" class="refresh">Refresh</button>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
