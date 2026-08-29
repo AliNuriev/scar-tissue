@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "target_stack": "node-express",
+  "confidence_threshold": 0.6,
+  "classes": [
+    {
+      "id": "race-condition",
+      "name": "Unguarded concurrent access to shared state",
+      "definition": "Two or more concurrent operations read a shared value, decide based on it, and write back, without any mechanism guaranteeing the value did not change in between.",
+      "tier": "core",
+      "prose_signals": [
+        "happened only under load",
+        "two users at the same time",
+        "could not reproduce locally",
+        "intermittent",
+        "duplicate record created",
+        "count went negative",
+        "double booking",
+        "simultaneous requests"
+      ],
+      "code_pattern": "A read of shared state (db row, cache entry, in-memory counter), followed by a conditional, followed by a write to that same state, with an await or IO boundary in between and no transaction, lock, or atomic operation.",
+      "guardrail_strategy": "Require that any read-decide-write sequence on shared state is performed inside a transaction, an atomic database operation, or behind an explicit lock. Reject the pattern where an availability check and the corresponding claim are separate statements.",
+      "detection_hint": "await[^;]+find[^;]+;[\\s\\S]{0,400}?if[\\s\\S]{0,400}?await[^;]+(save|update|insert)",
+      "test_strategy": "Fire N concurrent requests at the same endpoint with Promise.all and assert the invariant holds exactly once.",
+      "generalizes_well": true,
+      "notes": "Highest value class for the demo. The failure is invisible in single-threaded manual testing, which is exactly why it survives code review."
+    },
+    {
+      "id": "unvalidated-input",
+      "name": "External input reaches a sink without validation",
+      "definition": "A value originating outside the system boundary (request body, query string, header, webhook payload, third-party response) is used in a query, filesystem path, computation, or downstream call without being validated or constrained first.",
+      "tier": "core",
+      "prose_signals": [
+        "malformed request",
+        "unexpected payload",
+        "crashed when the field was missing",
+        "user sent",
+        "empty string",
+        "wrong type",
+        "returned 500 instead of 400"
+      ],
+      "code_pattern": "Direct destructuring or property access on req.body / req.query / req.params followed by use in a query, arithmetic, or an outbound call, with no schema validation, type check, or bounds check on the path between.",
+      "guardrail_strategy": "Require every route handler to validate its inputs against an explicit schema before any business logic runs. Reject direct use of req.* values below the first validation boundary.",
+      "detection_hint": "req\\.(body|query|params)\\.[A-Za-z_]+[\\s\\S]{0,200}?(find|update|insert|delete|exec|query|join|readFile)",
+      "test_strategy": "Send the malformed payload from the incident and assert a 4xx with a useful message, not a 5xx or a silent success.",
+      "generalizes_well": true,
+      "notes": "Easiest class to detect and to write a rule for. Good safety net if other classes prove hard."
+    },
+    {
+      "id": "unbounded-resource",
+      "name": "Operation with no upper bound",
+      "definition": "A query, loop, allocation, or fan-out whose size is determined by data rather than by an explicit limit, so it grows without bound as the dataset grows.",
+      "tier": "core",
+      "prose_signals": [
+        "timed out",
+        "memory spiked",
+        "slow after the data grew",
+        "fine in staging",
+        "response took minutes",
+        "loaded everything",
+        "OOM"
+      ],
+      "code_pattern": "A collection-returning query with no limit, skip, or pagination; or an await inside a loop over an unbounded collection; or an unbounded Promise.all fan-out.",
+      "guardrail_strategy": "Require an explicit limit on every collection query and every fan-out. A default page size must be applied when the caller does not supply one.",
+      "detection_hint": "\\.find\\(\\s*\\{[^}]*\\}\\s*\\)(?![\\s\\S]{0,120}(limit|take|slice|paginate))",
+      "test_strategy": "Seed a large fixture, call the endpoint, assert the returned collection size is capped and the response time stays under a threshold.",
+      "generalizes_well": false,
+      "notes": "The rule is prone to false positives on legitimately small collections. Expect this class to land in needs_review sometimes, which is fine and honest."
+    },
+    {
+      "id": "boundary-error",
+      "name": "Edge of the valid range handled incorrectly",
+      "definition": "The code is correct for typical values but wrong at a boundary: empty collection, single element, zero, negative, maximum, first or last item, midnight, month end, or a rounding edge.",
+      "tier": "core",
+      "prose_signals": [
+        "only when there was exactly one",
+        "empty list",
+        "last day of the month",
+        "at midnight",
+        "off by one",
+        "rounding",
+        "zero",
+        "first record",
+        "timezone"
+      ],
+      "code_pattern": "Indexing with length arithmetic, slicing without an emptiness check, date arithmetic on raw components, or float arithmetic on money.",
+      "guardrail_strategy": "Require an explicit empty and single-element branch wherever a collection is indexed, and require money and dates to go through the designated helper rather than raw arithmetic.",
+      "detection_hint": "\\[[a-zA-Z_.]+\\.length\\s*-\\s*1\\]|(?<![a-zA-Z])new Date\\([^)]*getMonth\\(\\)",
+      "test_strategy": "Parameterised test over the boundary set: empty, one, two, max, and the specific value from the incident.",
+      "generalizes_well": true,
+      "notes": "Very common in real postmortems and easy to write convincing incident reports for."
+    },
+    {
+      "id": "resource-leak",
+      "name": "Acquired resource not released on every path",
+      "definition": "A connection, file handle, lock, timer, subscription, or listener is acquired but released only on the success path, so failures leak it.",
+      "tier": "core",
+      "prose_signals": [
+        "connection pool exhausted",
+        "too many open files",
+        "degraded over hours",
+        "fixed by a restart",
+        "leak",
+        "handles climbing",
+        "ran out of connections"
+      ],
+      "code_pattern": "An acquire call whose matching release is not inside a finally block, or is absent on an early return or throw path.",
+      "guardrail_strategy": "Require every acquire to be paired with a release in a finally block, or to use a scoped helper that guarantees release.",
+      "detection_hint": "(connect|acquire|createReadStream|setInterval|addListener)\\([\\s\\S]{0,600}?(?!finally)",
+      "test_strategy": "Force the failure path repeatedly and assert the resource counter returns to baseline.",
+      "generalizes_well": true,
+      "notes": "The 'fixed by a restart' signal in prose is a very strong tell and makes for a readable incident report."
+    },
+    {
+      "id": "error-swallowing",
+      "name": "Failure caught and treated as success",
+      "definition": "An error is caught and then ignored, logged only, or converted into a benign-looking value, so the caller proceeds as if the operation succeeded.",
+      "tier": "stretch",
+      "prose_signals": [
+        "no errors in the logs",
+        "silently",
+        "we did not notice for days",
+        "returned empty instead of failing",
+        "swallowed",
+        "nothing in monitoring"
+      ],
+      "code_pattern": "A catch block with an empty body, a bare console.log, or a return of null, empty array, or a default value that is indistinguishable from a legitimate result.",
+      "guardrail_strategy": "Forbid catch blocks that neither rethrow, nor return a typed failure, nor emit a structured error event. A catch must make the failure visible to someone.",
+      "detection_hint": "catch\\s*\\([^)]*\\)\\s*\\{\\s*(\\}|console\\.[a-z]+\\([^)]*\\)\\s*;?\\s*\\}|return (null|\\[\\]|undefined|false)\\s*;?\\s*\\})",
+      "test_strategy": "Force the underlying operation to fail and assert the caller observes a failure rather than an empty success.",
+      "generalizes_well": true,
+      "notes": "Detection is unusually reliable because the anti-pattern is syntactic. Good class to include if time allows."
+    },
+    {
+      "id": "contract-violation",
+      "name": "Caller and callee disagree on the shape",
+      "definition": "Two components hold different assumptions about a payload, response, or config shape, and nothing enforces the agreement, so a change on one side breaks the other silently.",
+      "tier": "stretch",
+      "prose_signals": [
+        "the field was renamed",
+        "undefined is not a function",
+        "worked before the deploy",
+        "the other service changed",
+        "schema",
+        "the shape changed"
+      ],
+      "code_pattern": "Deep property access on an external response without a guard, or a hand-written object literal duplicating a shape defined elsewhere.",
+      "guardrail_strategy": "Require external responses to be parsed through a declared schema at the boundary, and forbid duplicating a shape that already has a canonical definition.",
+      "detection_hint": "await [a-zA-Z_.]+\\([^)]*\\)[\\s\\S]{0,80}?\\.[a-zA-Z_]+\\.[a-zA-Z_]+\\.",
+      "test_strategy": "Feed a response missing the field and assert a clear boundary error rather than a downstream crash.",
+      "generalizes_well": false,
+      "notes": "Hardest class to detect statically. Include only if the core five are done and working."
+    }
+  ]
+}
