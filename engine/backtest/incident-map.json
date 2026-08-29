@@ -1,0 +1,51 @@
+{
+  "_comment": "Maps each incident to the sandbox source files that caused it. Only these files are tested when scoring prevention for that incident. Paths are relative to the sandbox root passed to the harness.",
+  "INC-001": {
+    "bug_class": "race-condition",
+    "files": ["services/booking.js"]
+  },
+  "INC-002": {
+    "bug_class": "unbounded-resource",
+    "files": ["routes/bookings.js"]
+  },
+  "INC-003": {
+    "bug_class": "unvalidated-input",
+    "files": ["routes/search.js"]
+  },
+  "INC-004": {
+    "bug_class": "boundary-error",
+    "files": ["services/dates.js"]
+  },
+  "INC-005": {
+    "bug_class": "resource-leak",
+    "files": ["services/fares.js"]
+  },
+  "INC-006": {
+    "bug_class": "race-condition",
+    "files": ["services/loyalty.js"]
+  },
+  "INC-007": {
+    "bug_class": "unvalidated-input",
+    "files": ["routes/search.js"]
+  },
+  "INC-008": {
+    "bug_class": "boundary-error",
+    "files": ["services/manifest.js"]
+  },
+  "INC-009": {
+    "bug_class": "unbounded-resource",
+    "files": ["services/notifications.js"]
+  },
+  "INC-010": {
+    "bug_class": "resource-leak",
+    "files": ["services/pricewatch.js"]
+  },
+  "INC-011": {
+    "bug_class": "error-swallowing",
+    "files": ["services/ancillaries.js"]
+  },
+  "INC-012": {
+    "bug_class": "contract-violation",
+    "files": ["services/itinerary.js"]
+  }
+}

@@ -1,18 +1,13 @@
 {
-  "generated_at": "2026-08-29T10:20:00Z",
-  "target_repo": "galaxium-travels",
+  "generated_at": "2026-08-29T15:59:13.842Z",
   "incidents_total": 12,
-  "incidents_immunized": 9,
-  "incidents_needs_review": 2,
-  "incidents_failed": 1,
-  "prevention_rate": 0.75,
-  "guardrails_active": 9,
+  "incidents_immunized": 1,
+  "incidents_needs_review": 0,
+  "incidents_failed": 0,
+  "prevention_rate": 0.25,
+  "guardrails_active": 1,
   "bug_classes_covered": [
-    "race-condition",
-    "unbounded-resource",
-    "unvalidated-input",
-    "boundary-error",
-    "resource-leak"
+    "race-condition"
   ],
   "time_saved_sec": 41400,
   "avg_pipeline_sec": 312,
