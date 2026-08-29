@@ -1,24 +1,18 @@
-const { VoucherUnavailableError } = require('../errors');
-
-/**
- * Claim a seat-upgrade voucher on behalf of a passenger.
- *
- * The availability check and the claim are merged into a single atomic
- * findOneAndUpdate so that two concurrent requests cannot both see the
- * voucher as unused and both succeed.
- */
 async function claimUpgradeVoucher(voucherCode, passengerId) {
-  const claimed = await Voucher.findOneAndUpdate(
-    { code: voucherCode, status: 'unused' },
-    { status: 'used', claimedBy: passengerId, claimedAt: new Date() },
+  // Atomically mark the voucher used only if it is currently unused.
+  // A single findOneAndUpdate avoids the read-check-write window that
+  // would allow two concurrent requests to claim the same voucher.
+  const voucher = await Voucher.findOneAndUpdate(
+    { code: voucherCode, used: false },
+    { $set: { used: true, usedBy: passengerId, usedAt: new Date() } },
     { new: true }
   );
 
-  if (!claimed) {
-    throw new VoucherUnavailableError(voucherCode);
+  if (!voucher) {
+    return { success: false, reason: 'voucher_not_found_or_already_used' };
   }
 
-  return claimed;
+  return { success: true, voucher };
 }
 
 module.exports = { claimUpgradeVoucher };
