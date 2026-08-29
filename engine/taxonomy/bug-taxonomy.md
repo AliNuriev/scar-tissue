@@ -29,7 +29,7 @@ explains what the fields mean and why the classes were chosen.
 
 Five core classes, two stretch.
 
-**`race-condition`** — the strongest class for the demo. It is invisible to
+**`race-condition`** - the strongest class for the demo. It is invisible to
 manual testing and to code review, it only appears under concurrency, and the
 guardrail is unambiguous: a read-decide-write on shared state must be atomic.
 For Galaxium Travels the natural instance is a seat or ticket being claimed by
