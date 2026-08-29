@@ -1,0 +1,31 @@
+{
+  "incident_id": "INC-003",
+  "title": "Search endpoint returning 500 on partner traffic",
+  "source_doc": "incidents/INC-003.md",
+  "status": "immunized",
+  "bug_class": "unvalidated-input",
+  "confidence": 0.93,
+  "timeline": {
+    "started_at": "2026-03-08T13:05:00Z",
+    "finished_at": "2026-03-08T13:16:00Z",
+    "duration_sec": 660
+  },
+  "agents": [
+    { "name": "locator",    "status": "ok", "duration_sec": 35,  "summary": "Traced the search path to routes/search.js:searchFlights — destructures req.body fields into fare query with no validation" },
+    { "name": "historian",  "status": "ok", "duration_sec": 28,  "summary": "5 prose signals matched unvalidated-input (malformed request, user sent, wrong type, crashed when field was missing, returned 500 instead of 400); confidence 0.93" },
+    { "name": "reproducer", "status": "ok", "duration_sec": 95,  "summary": "Wrote failing test: sends passengers as string, asserts 4xx response; confirmed red — handler threw Flight is not defined" },
+    { "name": "fixer",      "status": "ok", "duration_sec": 72,  "summary": "Added type/presence validation block at top of searchFlights before any await; test now green" },
+    { "name": "immunizer",  "status": "ok", "duration_sec": 118, "summary": "Generated guardrail unvalidated-input-route-handler; all 3 validate.js checks passed (matches pre-fix, not post-fix, 1 repo match)" }
+  ],
+  "artifacts": {
+    "failing_test": "sandbox/tests/INC-003.test.js",
+    "patch_diff": "--- a/sandbox/routes/search.js\n+++ b/sandbox/routes/search.js\n@@ -1,10 +1,19 @@\n-// Fixture: unvalidated-input — pre-fix (vulnerable)\n-// Pattern: req.body fields passed directly to a database query with no check.\n+// Fixture: unvalidated-input — post-fix (safe)\n+// Pattern: inputs validated against an explicit schema before any business logic.\n \n async function searchFlights(req, res) {\n   const { origin, destination, departDate, passengers } = req.body;\n \n+  if (\n+    typeof origin !== 'string' || !origin ||\n+    typeof destination !== 'string' || !destination ||\n+    typeof departDate !== 'string' || !departDate ||\n+    typeof passengers !== 'number' || !Number.isInteger(passengers) || passengers < 1\n+  ) {\n+    return res.status(400).json({ error: 'Invalid or missing required fields: origin, destination, departDate, passengers (integer >= 1)' });\n+  }\n+\n   const results = await Flight.find({",
+    "guardrail": "guardrails/unvalidated-input-route-handler.md",
+    "pr_url": null
+  },
+  "backtest": {
+    "prevented": true,
+    "evidence": "engine/backtest/validate.js: Check 1 PASSED (regex matches pre-fix), Check 2 PASSED (no match on post-fix), Check 3 PASSED (1 repo match)"
+  },
+  "manual_baseline_sec": 10800
+}
