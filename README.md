@@ -2,7 +2,7 @@
 
 An automated post-incident pipeline that turns postmortem documents into installed coding rules for IBM Bob.
 
-> **Demo video:** https://your-demo-url-here
+> **Demo video:** https://youtu.be/oR6vMDyG60k
 
 ---
 
