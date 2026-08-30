@@ -109,6 +109,40 @@ rm runs/example-failed.json                          # disappears within 5s
 | `app.js` | Fetch, render, timeline geometry, detail view |
 | `fixtures/` | Example run files (see above) |
 
+## Tests
+
+```bash
+# Timeline geometry (dashboard/timeline.js)
+node --test dashboard/timeline.test.js
+
+# Summary logic and API smoke checks (dashboard/summary.js + server.js)
+node --test dashboard/summary.test.js
+
+# Both suites together
+node --test dashboard/timeline.test.js dashboard/summary.test.js
+```
+
+Runs dependency-free `node:test` regression tests. Requires Node 18+.
+
+**`dashboard/timeline.test.js`** covers:
+
+- `dashboard/fixtures/example-parallel.json` → measured mode with overlapping bars
+- `runs/INC-001.json` → five visible lanes in inferred sequential mode
+- Zero-duration agents remain as visible markers
+- ISO `started_at` timestamp positioning
+- Offsets and span are finite and non-negative for all inputs
+
+**`dashboard/summary.test.js`** covers:
+
+- Summary counts aligned with runs: no mismatch
+- Current summary/runs disagreement is detected (if present)
+- Prevention rate formatting (`formatPreventionRate`)
+- Inline artifact versus path detection (`looksLikePath`)
+- Existing artifact file response via `/api/file`
+- Missing artifact file response via `/api/file`
+- Path traversal rejected by `/api/file`
+- `/api/runs` returns the current run files
+
 ### API
 
 | Endpoint | Returns |

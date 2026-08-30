@@ -7,12 +7,20 @@
 
 'use strict';
 
+/* summary.js exports the small pure decision functions shared with tests. In
+ * the browser it is loaded as a plain <script> before this one and attaches
+ * its exports to globalThis. In tests (Node) the file is require()'d directly.
+ * Here we reference the globals; they are always present in the browser. */
+
 const POLL_MS = 5000;
-const AGENT_ORDER = ['locator', 'historian', 'reproducer', 'fixer', 'immunizer'];
+/* AGENT_ORDER and computeTimeline come from timeline.js, loaded before this
+ * script. In the browser they are on globalThis; in tests they are imported. */
 
 let lastPayloadHash = null;
 let currentRuns = [];
 let openIncidentId = null;
+/** Element that had focus before the drawer opened; restored on close. */
+let drawerOpener = null;
 
 /* ------------------------------------------------------------------ utils */
 
@@ -69,65 +77,20 @@ function statusChip(status) {
 
 /* --------------------------------------------------------------- timeline */
 
-/**
- * Work out where each agent bar sits on a shared time axis.
- *
- * The run JSON currently gives only `duration_sec` per agent — with no start
- * time there is no way to know what actually ran in parallel. So:
- *
- *   - `start_offset_sec` (seconds from run start), or `started_at` (ISO), if
- *     either is present -> real positions, real overlap.
- *   - neither present -> lay the agents end to end and label the timeline
- *     "inferred" so nobody reads made-up parallelism off the screen.
- *
- * When the pipeline starts emitting offsets this renders true overlap with no
- * change here.
- */
-function computeTimeline(run) {
-  const agents = Array.isArray(run.agents) ? run.agents : [];
-  const runStart = Date.parse(run?.timeline?.started_at);
-  let measured = agents.length > 0;
-  let cursor = 0;
-
-  const bars = agents.map((a) => {
-    const dur = isNum(a.duration_sec) ? a.duration_sec : 0;
-    let offset = null;
-
-    if (isNum(a.start_offset_sec)) {
-      offset = a.start_offset_sec;
-    } else if (a.started_at && Number.isFinite(runStart)) {
-      const t = Date.parse(a.started_at);
-      if (Number.isFinite(t)) offset = (t - runStart) / 1000;
-    }
-
-    if (offset === null) {
-      measured = false;
-      offset = cursor;
-      cursor += dur;
-    }
-    return { name: String(a.name ?? '?'), status: a.status, summary: a.summary, dur, offset };
-  });
-
-  const wall = isNum(run?.timeline?.duration_sec) ? run.timeline.duration_sec : 0;
-  const maxEnd = bars.reduce((m, b) => Math.max(m, b.offset + b.dur), 0);
-  const agentTotal = bars.reduce((s, b) => s + b.dur, 0);
-
-  return { bars, measured, wall, agentTotal, span: Math.max(wall, maxEnd, 1) };
-}
-
 function renderTimeline(run) {
-  const { bars, measured, wall, agentTotal, span } = computeTimeline(run);
+  const { bars, measured, overlapping, wall, agentTotal, span } = computeTimeline(run);
 
   const wrap = el('div', 'timeline');
 
   const head = el('div', 'timeline-head');
-  head.appendChild(el('div', 'timeline-caption', `${bars.length} subagents`));
+  /* Always exactly 5 canonical lanes — bars is always AGENT_ORDER.length long. */
+  head.appendChild(el('div', 'timeline-caption', '5 agents'));
 
   const mode = el('div', `timeline-mode${measured ? '' : ' inferred'}`);
   if (measured) {
-    // Real offsets: state whether they actually overlapped.
-    const overlapped = agentTotal > wall + 1;
-    mode.textContent = overlapped
+    /* overlapping comes from the geometry module: true only when two bars with
+     * dur > 0 have genuinely overlapping [offset, offset+dur) intervals. */
+    mode.textContent = overlapping
       ? `parallel · ${fmtDuration(agentTotal)} of work in ${fmtDuration(wall)}`
       : `measured · ${fmtDuration(agentTotal)} of work in ${fmtDuration(wall)}`;
     mode.title = 'Bar positions come from per-agent start times in the run JSON.';
@@ -142,23 +105,32 @@ function renderTimeline(run) {
 
   const grid = el('div', 'tl-grid');
 
-  // One row per agent, all sharing one x-axis, so concurrency shows up as bars
-  // occupying the same horizontal range on different rows.
+  /*
+   * One row per canonical agent, all sharing one x-axis, so concurrency shows
+   * up as bars occupying the same horizontal range on different rows.
+   * bars is always exactly 5 entries (AGENT_ORDER), so we always get 5 lanes.
+   */
   for (const bar of bars) {
-    grid.appendChild(el('div', 'tl-name', bar.name));
+    const nameCell = el('div', 'tl-name', bar.name);
+    if (bar.missing) nameCell.title = 'Agent not recorded in this run';
+    grid.appendChild(nameCell);
 
     const track = el('div', 'tl-track');
-    const slug = AGENT_ORDER.includes(bar.name) ? bar.name : 'other';
     const zero = bar.dur <= 0;
+    /* bar.name is always one of the five canonical names. */
+    const statusCls = bar.status ? `agent-status-${bar.status}` : 'agent-status-ok';
+    const missingCls = bar.missing ? ' agent-missing' : '';
 
-    const b = el('div', `tl-bar agent-${slug}${zero ? ' zero' : ''} agent-status-${bar.status ?? 'ok'}`);
+    const b = el('div', `tl-bar agent-${bar.name}${zero ? ' zero' : ''} ${statusCls}${missingCls}`);
     b.style.left = `${(bar.offset / span) * 100}%`;
     b.style.width = zero ? '' : `${Math.max((bar.dur / span) * 100, 1.2)}%`;
-    b.title = `${bar.name} · ${bar.status ?? 'ok'} · ${zero ? 'no work recorded' : fmtDuration(bar.dur)}` +
+
+    const statusLabel = bar.missing ? 'not recorded' : (bar.status ?? 'ok');
+    b.title = `${bar.name} · ${statusLabel} · ${zero ? 'no work recorded' : fmtDuration(bar.dur)}` +
       `\nstarts at +${fmtDuration(bar.offset)}` +
       (bar.summary ? `\n\n${bar.summary}` : '');
 
-    // Only label bars wide enough to hold the text.
+    /* Only label bars wide enough to hold the text. */
     if (!zero && (bar.dur / span) > 0.13) {
       b.appendChild(el('span', 'tl-bar-label', fmtDuration(bar.dur)));
     }
@@ -244,7 +216,8 @@ function renderIncidentRow(run) {
 function renderTopBar(summary, runs) {
   const s = summary ?? {};
 
-  const rate = isNum(s.prevention_rate) ? `${Math.round(s.prevention_rate * 100)}%` : '—';
+  // formatPreventionRate comes from summary.js (globalThis in browser).
+  const rate = formatPreventionRate(s.prevention_rate);
   document.getElementById('hero-value').textContent = rate;
 
   const counted = [
@@ -295,26 +268,8 @@ function renderAlerts(summary, runs, errors) {
     box.appendChild(a);
   }
 
-  if (!summary) return;
-
-  const actual = { immunized: 0, needs_review: 0, failed: 0 };
-  for (const r of runs) {
-    const c = statusClass(r.status);
-    if (c in actual) actual[c] += 1;
-  }
-
-  const mismatches = [];
-  const pairs = [
-    ['incidents_immunized', 'immunized'],
-    ['incidents_needs_review', 'needs_review'],
-    ['incidents_failed', 'failed'],
-  ];
-  for (const [key, k] of pairs) {
-    if (isNum(summary[key]) && summary[key] !== actual[k]) {
-      mismatches.push(`${key} says ${summary[key]}, run files show ${actual[k]}`);
-    }
-  }
-
+  // checkCounts comes from summary.js (globalThis in browser).
+  const mismatches = checkCounts(summary, runs);
   if (mismatches.length) {
     const a = el('div', 'alert alert-warn');
     a.appendChild(el('strong', null, 'summary.json disagrees with runs/: '));
@@ -325,14 +280,10 @@ function renderAlerts(summary, runs, errors) {
 
 /* ----------------------------------------------------------- detail view */
 
-/** Distinguish "a path to an artifact" from "the artifact inlined". */
-function looksLikePath(value) {
-  return typeof value === 'string'
-    && value.length > 0
-    && value.length < 300
-    && !value.includes('\n')
-    && /^[\w][\w./@-]*\.[A-Za-z0-9]+$/.test(value);
-}
+/**
+ * Distinguish "a path to an artifact" from "the artifact inlined".
+ * Delegated to summary.js (looksLikePath is on globalThis in the browser).
+ */
 
 function renderDiff(text) {
   const pre = el('pre', 'code');
@@ -471,8 +422,14 @@ async function openDrawer(incidentId) {
   const body = document.getElementById('drawer-body');
   body.replaceChildren(el('div', 'empty', 'Loading artifacts…'));
 
+  // Save focus origin so we can restore it when the drawer closes.
+  drawerOpener = document.activeElement;
+
   document.getElementById('drawer').hidden = false;
   document.getElementById('drawer-scrim').hidden = false;
+
+  // Focus the close button so screen readers announce the dialog immediately.
+  document.getElementById('drawer-close').focus();
 
   const a = run.artifacts ?? {};
   const sections = await Promise.all([
@@ -504,6 +461,12 @@ function closeDrawer() {
   openIncidentId = null;
   document.getElementById('drawer').hidden = true;
   document.getElementById('drawer-scrim').hidden = true;
+
+  // Return focus to the element that triggered the open.
+  if (drawerOpener && typeof drawerOpener.focus === 'function') {
+    drawerOpener.focus();
+  }
+  drawerOpener = null;
 }
 
 /* ------------------------------------------------------------------ load */

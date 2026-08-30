@@ -35,6 +35,12 @@
 
 * { box-sizing: border-box; }
 
+/* The hidden attribute must always mean display:none, even when an element also
+   carries a class that sets display:flex or display:block. Without this
+   explicit rule the drawer and scrim are visible on page load because their
+   class-level display value wins the cascade over the UA stylesheet. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -94,7 +100,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   align-items: center;
   flex-wrap: wrap;
 }
-.stat { min-width: 118px; }
+.stat { min-width: 118px; max-width: 280px; }
 .stat-value {
   font-size: 30px;
   font-weight: 650;
@@ -110,7 +116,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   color: var(--text-dim);
 }
-.stat-sub { margin-top: 2px; font-size: 11px; color: var(--text-faint); }
+.stat-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+  /* Allow the bug-class list to wrap across lines rather than truncating. */
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.55;
+}
 
 /* ------------------------------------------------------------------ shell */
 
@@ -325,6 +339,10 @@ main { padding: 24px 28px 80px; max-width: 1400px; margin: 0 auto; }
 }
 /* An agent name outside the known five still gets a bar, in the neutral accent. */
 .tl-bar.agent-other { background: var(--accent); }
+/* An agent absent from the run JSON: dim hatching so the lane is never empty. */
+.tl-bar.agent-missing {
+  opacity: 0.35;
+}
 
 /* A healthy agent is the unmarked default; only partial and error are called out. */
 .tl-bar.agent-status-ok      { outline: none; }
@@ -348,6 +366,9 @@ main { padding: 24px 28px 80px; max-width: 1400px; margin: 0 auto; }
   inset: 0;
   background: rgba(3, 6, 12, 0.66);
   z-index: 40;
+  /* display:none is handled by [hidden] above; this element is position:fixed
+     so it never takes up layout space, but we still want it truly removed from
+     painting when closed. */
 }
 
 .drawer {
@@ -362,6 +383,8 @@ main { padding: 24px 28px 80px; max-width: 1400px; margin: 0 auto; }
   display: flex;
   flex-direction: column;
   box-shadow: -22px 0 60px rgba(0, 0, 0, 0.5);
+  /* display:flex is the open state; display:none (via [hidden]) is closed.
+     The [hidden] rule above uses !important so it wins when both apply. */
 }
 
 .drawer-head {
