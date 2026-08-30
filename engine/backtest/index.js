@@ -212,6 +212,11 @@ function runBacktest(sandboxPath) {
         continue;
       }
 
+      // Class rule: a guardrail may only score an incident of the same bug class
+      if (g.bug_class && bugClass && g.bug_class !== bugClass) {
+        continue;
+      }
+
       if (g.regex.test(source)) {
         prevented = true;
         caughtBy  = g.id;

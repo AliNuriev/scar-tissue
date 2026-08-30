@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-08-29T17:03:04.583Z",
+  "generated_at": "2026-08-30T10:21:12.437Z",
   "incidents_total": 12,
   "incidents_immunized": 2,
-  "incidents_needs_review": 0,
+  "incidents_needs_review": 1,
   "incidents_failed": 0,
-  "prevention_rate": 0.5,
+  "prevention_rate": 0.1667,
   "guardrails_active": 2,
   "bug_classes_covered": [
     "race-condition",
