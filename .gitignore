@@ -27,3 +27,7 @@ venv/
 *.log
 .DS_Store
 tmp/
+
+# vendored demo app — cloned by sandbox/setup.sh, never committed.
+# Upstream: IBM/galaxium-travels (Apache-2.0). See sandbox/README.md.
+sandbox/galaxium-travels/
