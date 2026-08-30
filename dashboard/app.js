@@ -7,6 +7,11 @@
 
 'use strict';
 
+/* summary.js exports the small pure decision functions shared with tests. In
+ * the browser it is loaded as a plain <script> before this one and attaches
+ * its exports to globalThis. In tests (Node) the file is require()'d directly.
+ * Here we reference the globals; they are always present in the browser. */
+
 const POLL_MS = 5000;
 /* AGENT_ORDER and computeTimeline come from timeline.js, loaded before this
  * script. In the browser they are on globalThis; in tests they are imported. */
@@ -14,6 +19,8 @@ const POLL_MS = 5000;
 let lastPayloadHash = null;
 let currentRuns = [];
 let openIncidentId = null;
+/** Element that had focus before the drawer opened; restored on close. */
+let drawerOpener = null;
 
 /* ------------------------------------------------------------------ utils */
 
@@ -209,7 +216,8 @@ function renderIncidentRow(run) {
 function renderTopBar(summary, runs) {
   const s = summary ?? {};
 
-  const rate = isNum(s.prevention_rate) ? `${Math.round(s.prevention_rate * 100)}%` : '—';
+  // formatPreventionRate comes from summary.js (globalThis in browser).
+  const rate = formatPreventionRate(s.prevention_rate);
   document.getElementById('hero-value').textContent = rate;
 
   const counted = [
@@ -260,26 +268,8 @@ function renderAlerts(summary, runs, errors) {
     box.appendChild(a);
   }
 
-  if (!summary) return;
-
-  const actual = { immunized: 0, needs_review: 0, failed: 0 };
-  for (const r of runs) {
-    const c = statusClass(r.status);
-    if (c in actual) actual[c] += 1;
-  }
-
-  const mismatches = [];
-  const pairs = [
-    ['incidents_immunized', 'immunized'],
-    ['incidents_needs_review', 'needs_review'],
-    ['incidents_failed', 'failed'],
-  ];
-  for (const [key, k] of pairs) {
-    if (isNum(summary[key]) && summary[key] !== actual[k]) {
-      mismatches.push(`${key} says ${summary[key]}, run files show ${actual[k]}`);
-    }
-  }
-
+  // checkCounts comes from summary.js (globalThis in browser).
+  const mismatches = checkCounts(summary, runs);
   if (mismatches.length) {
     const a = el('div', 'alert alert-warn');
     a.appendChild(el('strong', null, 'summary.json disagrees with runs/: '));
@@ -290,14 +280,10 @@ function renderAlerts(summary, runs, errors) {
 
 /* ----------------------------------------------------------- detail view */
 
-/** Distinguish "a path to an artifact" from "the artifact inlined". */
-function looksLikePath(value) {
-  return typeof value === 'string'
-    && value.length > 0
-    && value.length < 300
-    && !value.includes('\n')
-    && /^[\w][\w./@-]*\.[A-Za-z0-9]+$/.test(value);
-}
+/**
+ * Distinguish "a path to an artifact" from "the artifact inlined".
+ * Delegated to summary.js (looksLikePath is on globalThis in the browser).
+ */
 
 function renderDiff(text) {
   const pre = el('pre', 'code');
@@ -436,8 +422,14 @@ async function openDrawer(incidentId) {
   const body = document.getElementById('drawer-body');
   body.replaceChildren(el('div', 'empty', 'Loading artifacts…'));
 
+  // Save focus origin so we can restore it when the drawer closes.
+  drawerOpener = document.activeElement;
+
   document.getElementById('drawer').hidden = false;
   document.getElementById('drawer-scrim').hidden = false;
+
+  // Focus the close button so screen readers announce the dialog immediately.
+  document.getElementById('drawer-close').focus();
 
   const a = run.artifacts ?? {};
   const sections = await Promise.all([
@@ -469,6 +461,12 @@ function closeDrawer() {
   openIncidentId = null;
   document.getElementById('drawer').hidden = true;
   document.getElementById('drawer-scrim').hidden = true;
+
+  // Return focus to the element that triggered the open.
+  if (drawerOpener && typeof drawerOpener.focus === 'function') {
+    drawerOpener.focus();
+  }
+  drawerOpener = null;
 }
 
 /* ------------------------------------------------------------------ load */
