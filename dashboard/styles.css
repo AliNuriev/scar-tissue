@@ -339,6 +339,10 @@ main { padding: 24px 28px 80px; max-width: 1400px; margin: 0 auto; }
 }
 /* An agent name outside the known five still gets a bar, in the neutral accent. */
 .tl-bar.agent-other { background: var(--accent); }
+/* An agent absent from the run JSON: dim hatching so the lane is never empty. */
+.tl-bar.agent-missing {
+  opacity: 0.35;
+}
 
 /* A healthy agent is the unmarked default; only partial and error are called out. */
 .tl-bar.agent-status-ok      { outline: none; }

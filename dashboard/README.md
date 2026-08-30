@@ -109,6 +109,21 @@ rm runs/example-failed.json                          # disappears within 5s
 | `app.js` | Fetch, render, timeline geometry, detail view |
 | `fixtures/` | Example run files (see above) |
 
+## Tests
+
+```bash
+node --test dashboard/timeline.test.js
+```
+
+Runs dependency-free `node:test` regression tests against the timeline geometry
+module (`dashboard/timeline.js`). Requires Node 18+. Covers:
+
+- `dashboard/fixtures/example-parallel.json` → measured mode with overlapping bars
+- `runs/INC-001.json` → five visible lanes in inferred sequential mode
+- Zero-duration agents remain as visible markers
+- ISO `started_at` timestamp positioning
+- Offsets and span are finite and non-negative for all inputs
+
 ### API
 
 | Endpoint | Returns |
