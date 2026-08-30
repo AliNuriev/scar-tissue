@@ -1,0 +1,31 @@
+{
+  "incident_id": "INC-005",
+  "title": "Connection pool exhaustion after a partner outage",
+  "source_doc": "incidents/INC-005.md",
+  "status": "immunized",
+  "bug_class": "resource-leak",
+  "confidence": 0.91,
+  "timeline": {
+    "started_at": "2026-02-19T15:00:00Z",
+    "finished_at": "2026-02-19T15:11:00Z",
+    "duration_sec": 660
+  },
+  "agents": [
+    { "name": "locator",    "status": "ok", "duration_sec": 30,  "summary": "Postmortem names fetchPartnerFares explicitly — acquires connection, issues partner call, releases only on success path; traced to sandbox/services/fares.js" },
+    { "name": "historian",  "status": "ok", "duration_sec": 25,  "summary": "5 prose signals matched resource-leak (connection pool exhausted, fixed by a restart, handles climbing, leak, degraded over hours); confidence 0.91" },
+    { "name": "reproducer", "status": "ok", "duration_sec": 88,  "summary": "Wrote failing test: forces partnerApi.getFares to throw N times, asserts outstanding pool count returns to 0; confirmed red — got 5, wanted 0" },
+    { "name": "fixer",      "status": "ok", "duration_sec": 65,  "summary": "Wrapped body in try/finally, moved pool.release into finally block; test now green — 0 outstanding connections after 5 failures" },
+    { "name": "immunizer",  "status": "ok", "duration_sec": 110, "summary": "Generated guardrail resource-leak-missing-finally; all 3 validate.js checks passed (matches pre-fix, not post-fix, 2 repo matches); regex also matches sandbox/services/pricewatch.js (INC-010 same class)" }
+  ],
+  "artifacts": {
+    "failing_test": "sandbox/tests/INC-005.test.js",
+    "patch_diff": "--- a/sandbox/services/fares.js\n+++ b/sandbox/services/fares.js\n@@ -1,14 +1,14 @@\n-// Fixture: INC-005 resource-leak — pre-fix (vulnerable)\n-// fetchPartnerFares acquires a connection and releases it only on the success path.\n-// If the partner call throws, the connection is never returned to the pool.\n+// Fixture: INC-005 resource-leak — post-fix (safe)\n+// fetchPartnerFares acquires a connection and always releases it in a finally block.\n \n async function fetchPartnerFares(origin, destination, date) {\n   const conn = await pool.acquire();\n-\n-  const response = await partnerApi.getFares(conn, { origin, destination, date });\n-\n-  await pool.release(conn);\n-  return response.fares;\n+  try {\n+    const response = await partnerApi.getFares(conn, { origin, destination, date });\n+    return response.fares;\n+  } finally {\n+    await pool.release(conn);\n+  }\n }",
+    "guardrail": "guardrails/resource-leak-missing-finally.md",
+    "pr_url": null
+  },
+  "backtest": {
+    "prevented": true,
+    "evidence": "engine/backtest/validate.js: Check 1 PASSED (regex matches pre-fix), Check 2 PASSED (no match on post-fix), Check 3 PASSED (2 repo matches); regex independently matches sandbox/services/pricewatch.js (INC-010)"
+  },
+  "manual_baseline_sec": 10800
+}

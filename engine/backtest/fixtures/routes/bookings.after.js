@@ -1,6 +1,5 @@
-// scar-tissue-allow: unvalidated-input-route-handler — validated upstream
-// Fixture: INC-002 unbounded-resource — post-fix (safe)
-// getBookingHistory applies a default page size cap to prevent unbounded fetches.
+// Fixture: unbounded-resource — post-fix (safe)
+// getBookingHistory applies a server-side cap before querying.
 
 const MAX_PAGE_SIZE = 50;
 

@@ -1,16 +1,18 @@
 {
-  "generated_at": "2026-08-30T10:21:12.437Z",
+  "generated_at": "2026-08-30T10:42:05.432Z",
   "incidents_total": 12,
-  "incidents_immunized": 2,
-  "incidents_needs_review": 1,
+  "incidents_immunized": 4,
+  "incidents_needs_review": 0,
   "incidents_failed": 0,
-  "prevention_rate": 0.1667,
-  "guardrails_active": 2,
+  "prevention_rate": 0.3333,
+  "guardrails_active": 4,
   "bug_classes_covered": [
     "race-condition",
+    "resource-leak",
+    "unbounded-resource",
     "unvalidated-input"
   ],
-  "time_saved_sec": 52200,
-  "avg_pipeline_sec": 525,
-  "avg_manual_baseline_sec": 10800
+  "time_saved_sec": 73800,
+  "avg_pipeline_sec": 502,
+  "avg_manual_baseline_sec": 13500
 }

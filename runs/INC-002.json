@@ -1,31 +1,31 @@
 {
   "incident_id": "INC-002",
-  "title": "Unbounded query returns entire flight history",
+  "title": "Booking history endpoint timing out for long-standing customers",
   "source_doc": "incidents/INC-002.md",
-  "status": "needs_review",
+  "status": "immunized",
   "bug_class": "unbounded-resource",
-  "confidence": 0.41,
+  "confidence": 0.92,
   "timeline": {
-    "started_at": "2026-08-29T10:12:00Z",
-    "finished_at": "2026-08-29T10:15:10Z",
-    "duration_sec": 190
+    "started_at": "2026-05-02T13:00:00Z",
+    "finished_at": "2026-05-02T13:14:00Z",
+    "duration_sec": 840
   },
   "agents": [
-    { "name": "locator",    "status": "ok",      "duration_sec": 33, "summary": "Found the unpaginated query in routes/flights.js:52" },
-    { "name": "historian",  "status": "ok",      "duration_sec": 29, "summary": "No prior occurrence of this class" },
-    { "name": "reproducer", "status": "ok",      "duration_sec": 61, "summary": "Test reproduces the slow path under a large fixture" },
-    { "name": "fixer",      "status": "ok",      "duration_sec": 67, "summary": "Added pagination with a default page size" },
-    { "name": "immunizer",  "status": "partial", "duration_sec": 0,  "summary": "Rule too broad, would flag legitimate queries. Flagged for human review" }
+    { "name": "locator",    "status": "ok", "duration_sec": 30,  "summary": "Traced GET /api/bookings/history to routes/bookings.js:getBookingHistory — calls Booking.find({ accountId }) with no limit, offset, or pagination" },
+    { "name": "historian",  "status": "ok", "duration_sec": 25,  "summary": "5 prose signals matched unbounded-resource (timed out, memory spiked, fine in staging, slow after data grew, loaded everything); confidence 0.92" },
+    { "name": "reproducer", "status": "ok", "duration_sec": 88,  "summary": "Wrote failing test: seeds 4000-record stub, calls getBookingHistory, asserts response length <= 50; confirmed red — got 4000 records" },
+    { "name": "fixer",      "status": "ok", "duration_sec": 65,  "summary": "Added MAX_PAGE_SIZE=50 constant and limit parameter; Booking.find now receives { limit }; test green" },
+    { "name": "immunizer",  "status": "ok", "duration_sec": 130, "summary": "Generated guardrail unbounded-resource-missing-limit; all 3 validate.js checks passed (matches pre-fix, not post-fix, 7 repo matches); also matches notifications.js (INC-009)" }
   ],
   "artifacts": {
-    "failing_test": "sandbox/galaxium-travels/tests/flights.pagination.test.js",
-    "patch_diff": "runs/INC-002/fix.diff",
-    "guardrail": null,
+    "failing_test": "sandbox/tests/INC-002.test.js",
+    "patch_diff": "--- a/sandbox/routes/bookings.js\n+++ b/sandbox/routes/bookings.js\n@@ -1,10 +1,13 @@\n-// Fixture: INC-002 unbounded-resource — pre-fix (vulnerable)\n+// Fixture: INC-002 unbounded-resource — post-fix (safe)\n \n+const MAX_PAGE_SIZE = 50;\n+\n async function getBookingHistory(req, res) {\n   const { accountId } = req.params;\n+  const limit = Math.min(parseInt(req.query.limit, 10) || MAX_PAGE_SIZE, MAX_PAGE_SIZE);\n \n-  const bookings = await Booking.find({ accountId });\n+  const bookings = await Booking.find({ accountId }, { limit });\n \n   res.json(bookings);\n }",
+    "guardrail": "guardrails/unbounded-resource-missing-limit.md",
     "pr_url": null
   },
   "backtest": {
-    "prevented": false,
-    "evidence": null
+    "prevented": true,
+    "evidence": "engine/backtest/validate.js: Check 1 PASSED (regex matches pre-fix), Check 2 PASSED (no match on post-fix), Check 3 PASSED (7 repo matches); detection also matches sandbox/services/notifications.js confirming generalisation to INC-009 pattern"
   },
-  "manual_baseline_sec": 5400
+  "manual_baseline_sec": 21600
 }
